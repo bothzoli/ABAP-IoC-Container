@@ -1,0 +1,29 @@
+# ToDo
+
+- Part 1.
+	- Validate C# code
+	- Proof read Part 1.
+	- Finalize Part 1. (images, etc.)
+	- Have Part 1. proof read
+- Part 2.
+	- Create draft for Part 2.
+	- Proof read Part 2.
+	- Finalize Part 2. (images, etc.)
+	- Have Part 2. proof read
+- IoC Container
+	- Make it inheritable (private -> protected where applicable)
+	- Test with friend classes
+	- Cleanup code as much as possible
+	- Update ABAP code with latest version
+	- Update ABAP UML diagrams
+- DEV.to
+	- Register on DEV.to
+	- Upload articles
+	- Proof read
+	- Publish
+- blogs.sap.com
+	- Cross-reference DEV.to articles
+	- Proof read
+	- Publish
+- Send links around
+- Tweet
