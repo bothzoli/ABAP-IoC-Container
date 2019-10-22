@@ -1,0 +1,62 @@
+@startuml dependency_inversion
+
+hide empty members
+
+class "Module A" as A
+
+class "Module B" as B
+
+A --> B : dependency
+A --> B : flow of control
+
+@enduml
+
+
+@startuml dependency_inversion_flipped
+
+hide empty members
+
+class "Module A" as A
+interface "Interface" AS I <<interface>> 
+class "Module B" as B
+
+A -right-> I : dependency
+A --> I : flow of control
+
+B -down-> I : dependency
+I -down-> B : flow of control
+
+@enduml
+
+@startuml modules
+
+hide empty members
+
+class HighLevelModule {
+	- _myLowLevelModule : IDependency
+	+ MyLowLevelModule : IDependency
+	+ DoSomeStuff() : void
+}
+
+interface IDependency <<interface>> {
+	{abstract} + LowLevelStuff() : void
+}
+
+class LowLevelModule {
+	+ LowLevelStuff() : void
+}
+
+class AnotherLowLevelModule {
+	+ LowLevelStuff() : void
+}
+
+class LowLevelModuleFactory {
+	{static} + CreateModule() : IDependency
+}
+
+HighLevelModule -right- IDependency : <<uses>>
+LowLevelModuleFactory -down- IDependency : <<creates>>
+IDependency <|.. LowLevelModule
+IDependency <|.. AnotherLowLevelModule
+
+@enduml
