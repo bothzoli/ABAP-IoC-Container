@@ -9,6 +9,7 @@ CLASS ltc_test DEFINITION FINAL FOR TESTING
 
     METHODS:
       setup,
+      teardown,
 
       create_registered_instance  FOR TESTING
         RAISING
@@ -29,7 +30,9 @@ CLASS ltc_test DEFINITION FINAL FOR TESTING
         RAISING
           zcx_ioc_container,
       create_private              FOR TESTING,
-      private_constructor         FOR TESTING,
+      create_private_friend       FOR TESTING
+        RAISING
+          zcx_ioc_container,
       not_instantiatable          FOR TESTING.
 ENDCLASS.
 
@@ -37,7 +40,9 @@ ENDCLASS.
 CLASS ltc_test IMPLEMENTATION.
 
   METHOD setup.
-    cut = NEW zcl_ioc_container( ).
+    cut = zcl_ioc_container=>get_instance( ).
+    cut->deregister( ).
+    cut->deregister_instance( ).
   ENDMETHOD.
 
 
@@ -209,24 +214,22 @@ CLASS ltc_test IMPLEMENTATION.
 
     ENDTRY.
 
-    cl_abap_unit_assert=>assert_not_bound( cut->resolve( `zcl_ioc_create_private` ) ).
+    cl_abap_unit_assert=>assert_not_bound( cut->resolve( `zif_ioc_a` ) ).
 
   ENDMETHOD.
 
 
-  METHOD private_constructor.
+  METHOD create_private_friend.
 
-    TRY.
-        cut->register(
-          interface_name = `zif_ioc_a`
-          class_name     = `zcl_ioc_private_constructor`
-        ).
-        cl_abap_unit_assert=>fail( `Class with private constructor should not be registered` ).
-      CATCH zcx_ioc_container.
+    cut->register(
+      interface_name = `zif_ioc_a`
+      class_name     = `zcl_ioc_create_private_friend`
+    ).
 
-    ENDTRY.
-
-    cl_abap_unit_assert=>assert_not_bound( cut->resolve( `zcl_ioc_private_constructor` ) ).
+    DATA(create_private_friend) = cut->resolve( `zif_ioc_a` ).
+    cl_abap_unit_assert=>assert_true(
+      xsdbool( create_private_friend IS INSTANCE OF zcl_ioc_create_private_friend )
+    ).
 
   ENDMETHOD.
 
@@ -245,6 +248,14 @@ CLASS ltc_test IMPLEMENTATION.
 
     cl_abap_unit_assert=>assert_not_bound( cut->resolve( `zcl_ioc_abstract` ) ).
 
+    cl_abap_unit_assert=>assert_not_bound( cut->resolve( `zcl_ioc_abstract` ) ).
+
+  ENDMETHOD.
+
+
+  METHOD teardown.
+    cut->deregister( ).
+    cut->deregister_instance( ).
   ENDMETHOD.
 
 ENDCLASS.

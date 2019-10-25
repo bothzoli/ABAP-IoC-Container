@@ -11,10 +11,10 @@
 	- Finalize Part 2. (images, etc.)
 	- Have Part 2. proof read
 - IoC Container
-	- Make it inheritable (private -> protected where applicable)
-	- Test with friend classes
-	- Cleanup code as much as possible
-	- Update ABAP code with latest version
+	- ~~Make it inheritable (private -> protected where applicable)~~
+	- ~~Test with friend classes~~
+	- ~~Cleanup code as much as possible~~
+	- ~~Update ABAP code with latest version~~
 	- Update ABAP UML diagrams
 - DEV.to
 	- Register on DEV.to

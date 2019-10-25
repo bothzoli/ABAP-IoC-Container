@@ -1,9 +1,13 @@
 CLASS zcl_ioc_container DEFINITION
   PUBLIC
-  FINAL
-  CREATE PUBLIC.
+  CREATE PRIVATE.
 
   PUBLIC SECTION.
+
+    CLASS-METHODS:
+      get_instance
+        RETURNING
+          VALUE(instance) TYPE REF TO zcl_ioc_container.
 
     METHODS:
       register
@@ -14,14 +18,14 @@ CLASS zcl_ioc_container DEFINITION
           zcx_ioc_container,
       deregister
         IMPORTING
-          !interface_name TYPE string,
+          !interface_name TYPE string OPTIONAL,
       register_instance
         IMPORTING
           !interface_name TYPE string
           !instance       TYPE REF TO object,
       deregister_instance
         IMPORTING
-          !interface_name TYPE string,
+          !interface_name TYPE string OPTIONAL,
       resolve
         IMPORTING
           !interface_name   TYPE string
@@ -30,60 +34,101 @@ CLASS zcl_ioc_container DEFINITION
 
   PRIVATE SECTION.
 
-    CONSTANTS:
-      constructor_name TYPE string VALUE `CONSTRUCTOR`.
-
-    TYPES BEGIN OF ts_mapping_table.
+    TYPES:
+      BEGIN OF ts_mapping_table.
     TYPES   interface_name  TYPE string.
     TYPES   class_name      TYPE string.
     TYPES END OF ts_mapping_table.
+    TYPES:
+      tt_mapping_table TYPE HASHED TABLE OF ts_mapping_table
+        WITH UNIQUE KEY interface_name.
 
-    TYPES tt_mapping_table TYPE HASHED TABLE OF ts_mapping_table
-      WITH UNIQUE KEY interface_name.
-
-    TYPES BEGIN OF ts_instance_mapping_table.
+    TYPES:
+      BEGIN OF ts_instance_mapping_table.
     TYPES   interface_name    TYPE string.
     TYPES   object_reference  TYPE REF TO object.
     TYPES END OF ts_instance_mapping_table.
+    TYPES:
+      tt_instance_mapping_table TYPE HASHED TABLE OF ts_instance_mapping_table
+        WITH UNIQUE KEY interface_name.
 
-    TYPES tt_instance_mapping_table TYPE HASHED TABLE OF ts_instance_mapping_table
-      WITH UNIQUE KEY interface_name.
+
+    CONSTANTS:
+      constructor_name   TYPE string VALUE `CONSTRUCTOR`,
+      ioc_container_name TYPE string VALUE `ZCL_IOC_CONTAINER`.
+
+    CLASS-DATA:
+      container TYPE REF TO zcl_ioc_container.
 
     DATA:
       mapping_table          TYPE tt_mapping_table,
       instance_mapping_table TYPE tt_instance_mapping_table.
 
     METHODS:
-
-      assert_obj_create_is_possible
+      create_object
         IMPORTING
-          class_name TYPE string
+          !class_name       TYPE string
+          !parameter_tab    TYPE abap_parmbind_tab OPTIONAL
+        RETURNING
+          VALUE(new_object) TYPE REF TO object,
+      assert_creation_possible
+        IMPORTING
+          !class_name              TYPE string
+        RETURNING
+          VALUE(object_descriptor) TYPE REF TO cl_abap_objectdescr
+        RAISING
+          zcx_ioc_container,
+
+      assert_obj_creation_possible
+        IMPORTING
+          !type_descriptor         TYPE REF TO cl_abap_typedescr
+        RETURNING
+          VALUE(object_descriptor) TYPE REF TO cl_abap_objectdescr
         RAISING
           zcx_ioc_container,
 
       check_create_private
         IMPORTING
-          type_descriptor TYPE REF TO cl_abap_typedescr
+          !type_descriptor TYPE REF TO cl_abap_typedescr
         RAISING
           zcx_ioc_container,
 
       check_not_instantiatable
         IMPORTING
-          object_descriptor TYPE REF TO cl_abap_objectdescr
-        RAISING
-          zcx_ioc_container,
-
-      check_non_public_constructor
-        IMPORTING
-          object_descriptor TYPE REF TO cl_abap_objectdescr
+          !object_descriptor TYPE REF TO cl_abap_objectdescr
         RAISING
           zcx_ioc_container,
 
       get_parameter_type_name
         IMPORTING
-          parameter_descriptor       TYPE REF TO cl_abap_datadescr
+          !parameter_descriptor      TYPE REF TO cl_abap_datadescr
         RETURNING
-          VALUE(parameter_type_name) TYPE string.
+          VALUE(parameter_type_name) TYPE string,
+
+      get_type_descriptor
+        IMPORTING
+          !class_name            TYPE string
+        RETURNING
+          VALUE(type_descriptor) TYPE REF TO cl_abap_typedescr,
+
+      get_registered_object
+        IMPORTING
+          !interface_name          TYPE string
+        RETURNING
+          VALUE(registered_object) TYPE REF TO object,
+
+      get_registered_mapping
+        IMPORTING
+          !interface_name   TYPE string
+        RETURNING
+          VALUE(class_name) TYPE string,
+
+      get_parameter_descriptor
+        IMPORTING
+          !object_descriptor          TYPE REF TO cl_abap_objectdescr
+          !parameter_name             TYPE abap_parmname
+        RETURNING
+          VALUE(parameter_descriptor) TYPE REF TO cl_abap_datadescr.
 
 ENDCLASS.
 
@@ -93,31 +138,39 @@ CLASS zcl_ioc_container IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Private Method ZCL_IOC_CONTAINER->ASSERT_OBJ_CREATE_IS_POSSIBLE
+* | Instance Private Method ZCL_IOC_CONTAINER->ASSERT_CREATION_POSSIBLE
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] CLASS_NAME                     TYPE        STRING
+* | [<-()] OBJECT_DESCRIPTOR              TYPE REF TO CL_ABAP_OBJECTDESCR
 * | [!CX!] ZCX_IOC_CONTAINER
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  METHOD assert_obj_create_is_possible.
+  METHOD assert_creation_possible.
 
-    cl_abap_classdescr=>describe_by_name(
-      EXPORTING
-        p_name         = to_upper( class_name )
-      RECEIVING
-        p_descr_ref    = DATA(type_descriptor)
-      EXCEPTIONS
-        OTHERS         = 1
-    ).
-    IF sy-subrc IS NOT INITIAL.
+    DATA(type_descriptor) = get_type_descriptor( class_name ).
+
+    IF type_descriptor IS NOT BOUND.
       RAISE EXCEPTION NEW zcx_ioc_container( zcx_ioc_container=>error_in_type_determination ).
     ENDIF.
 
+    object_descriptor = assert_obj_creation_possible( type_descriptor ).
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_IOC_CONTAINER->ASSERT_OBJ_CREATION_POSSIBLE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] TYPE_DESCRIPTOR                TYPE REF TO CL_ABAP_TYPEDESCR
+* | [<-()] OBJECT_DESCRIPTOR              TYPE REF TO CL_ABAP_OBJECTDESCR
+* | [!CX!] ZCX_IOC_CONTAINER
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD assert_obj_creation_possible.
+
     check_create_private( type_descriptor ).
 
-    DATA(object_descriptor) = CAST cl_abap_objectdescr( type_descriptor ).
-    check_not_instantiatable( object_descriptor ).
+    object_descriptor = CAST cl_abap_objectdescr( type_descriptor ).
 
-    check_non_public_constructor( object_descriptor ).
+    check_not_instantiatable( object_descriptor ).
 
   ENDMETHOD.
 
@@ -131,28 +184,17 @@ CLASS zcl_ioc_container IMPLEMENTATION.
   METHOD check_create_private.
 
     DATA(class_descriptor) = CAST cl_abap_classdescr( type_descriptor ).
+
     IF class_descriptor->create_visibility NE cl_abap_objectdescr=>public.
+      DATA(friends) = class_descriptor->get_friend_types( ).
+
+      LOOP AT friends ASSIGNING FIELD-SYMBOL(<friend>).
+        IF <friend>->get_relative_name( ) EQ ioc_container_name.
+          RETURN.
+        ENDIF.
+      ENDLOOP.
+
       RAISE EXCEPTION NEW zcx_ioc_container( zcx_ioc_container=>class_is_create_private ).
-    ENDIF.
-
-  ENDMETHOD.
-
-
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Private Method ZCL_IOC_CONTAINER->CHECK_NON_PUBLIC_CONSTRUCTOR
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] OBJECT_DESCRIPTOR              TYPE REF TO CL_ABAP_OBJECTDESCR
-* | [!CX!] ZCX_IOC_CONTAINER
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  METHOD check_non_public_constructor.
-
-    DATA(constructor) = VALUE #( object_descriptor->methods[
-        name = constructor_name
-      ] DEFAULT VALUE #(
-        visibility = cl_abap_objectdescr=>public
-      ) ).
-    IF constructor-visibility NE cl_abap_objectdescr=>public.
-      RAISE EXCEPTION NEW zcx_ioc_container( zcx_ioc_container=>constructor_is_private ).
     ENDIF.
 
   ENDMETHOD.
@@ -174,14 +216,39 @@ CLASS zcl_ioc_container IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_IOC_CONTAINER->CREATE_OBJECT
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] CLASS_NAME                     TYPE        STRING
+* | [--->] PARAMETER_TAB                  TYPE        ABAP_PARMBIND_TAB(optional)
+* | [<-()] NEW_OBJECT                     TYPE REF TO OBJECT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD create_object.
+
+    IF parameter_tab IS SUPPLIED.
+      CREATE OBJECT new_object
+        TYPE (class_name)
+        PARAMETER-TABLE parameter_tab.
+    ELSE.
+      CREATE OBJECT new_object
+        TYPE (class_name).
+    ENDIF.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Public Method ZCL_IOC_CONTAINER->DEREGISTER
 * +-------------------------------------------------------------------------------------------------+
-* | [--->] INTERFACE_NAME                 TYPE        STRING
+* | [--->] INTERFACE_NAME                 TYPE        STRING(optional)
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD deregister.
 
-    DELETE TABLE mapping_table
-      WITH TABLE KEY interface_name = to_upper( interface_name ).
+    IF interface_name IS SUPPLIED.
+      DELETE TABLE mapping_table
+        WITH TABLE KEY interface_name = to_upper( interface_name ).
+    ELSE.
+      CLEAR mapping_table[].
+    ENDIF.
 
   ENDMETHOD.
 
@@ -189,12 +256,59 @@ CLASS zcl_ioc_container IMPLEMENTATION.
 * <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Public Method ZCL_IOC_CONTAINER->DEREGISTER_INSTANCE
 * +-------------------------------------------------------------------------------------------------+
-* | [--->] INTERFACE_NAME                 TYPE        STRING
+* | [--->] INTERFACE_NAME                 TYPE        STRING(optional)
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD deregister_instance.
 
-    DELETE TABLE instance_mapping_table
-      WITH TABLE KEY interface_name = to_upper( interface_name ).
+    IF interface_name IS SUPPLIED.
+      DELETE TABLE instance_mapping_table
+        WITH TABLE KEY interface_name = to_upper( interface_name ).
+    ELSE.
+      CLEAR instance_mapping_table[].
+    ENDIF.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_IOC_CONTAINER=>GET_INSTANCE
+* +-------------------------------------------------------------------------------------------------+
+* | [<-()] INSTANCE                       TYPE REF TO ZCL_IOC_CONTAINER
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD get_instance.
+
+    IF container IS NOT BOUND.
+      container = NEW #( ).
+    ENDIF.
+    instance = container.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_IOC_CONTAINER->GET_PARAMETER_DESCRIPTOR
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] OBJECT_DESCRIPTOR              TYPE REF TO CL_ABAP_OBJECTDESCR
+* | [--->] PARAMETER_NAME                 TYPE        ABAP_PARMNAME
+* | [<-()] PARAMETER_DESCRIPTOR           TYPE REF TO CL_ABAP_DATADESCR
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD get_parameter_descriptor.
+
+    object_descriptor->get_method_parameter_type(
+      EXPORTING
+        p_method_name       = constructor_name
+        p_parameter_name    = parameter_name
+      RECEIVING
+        p_descr_ref         = parameter_descriptor
+      EXCEPTIONS
+        OTHERS              = 1
+    ).
+
+    IF sy-subrc IS NOT INITIAL.
+      " This should not happen as the method and parameter names
+      " are returned from the object descriptor
+      CLEAR parameter_descriptor.
+    ENDIF.
 
   ENDMETHOD.
 
@@ -224,6 +338,60 @@ CLASS zcl_ioc_container IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_IOC_CONTAINER->GET_REGISTERED_MAPPING
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] INTERFACE_NAME                 TYPE        STRING
+* | [<-()] CLASS_NAME                     TYPE        STRING
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD get_registered_mapping.
+
+    class_name = VALUE #(
+      mapping_table[
+        interface_name = to_upper( interface_name )
+      ]-class_name DEFAULT to_upper( interface_name ) ).
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_IOC_CONTAINER->GET_REGISTERED_OBJECT
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] INTERFACE_NAME                 TYPE        STRING
+* | [<-()] REGISTERED_OBJECT              TYPE REF TO OBJECT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD get_registered_object.
+
+    registered_object = VALUE #( instance_mapping_table[
+      interface_name = to_upper( interface_name )
+      ]-object_reference OPTIONAL ).
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_IOC_CONTAINER->GET_TYPE_DESCRIPTOR
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] CLASS_NAME                     TYPE        STRING
+* | [<-()] TYPE_DESCRIPTOR                TYPE REF TO CL_ABAP_TYPEDESCR
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD get_type_descriptor.
+
+    cl_abap_classdescr=>describe_by_name(
+      EXPORTING
+        p_name         = to_upper( class_name )
+      RECEIVING
+        p_descr_ref    = type_descriptor
+      EXCEPTIONS
+        OTHERS         = 1
+    ).
+    IF sy-subrc IS NOT INITIAL.
+      CLEAR type_descriptor.
+    ENDIF.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Public Method ZCL_IOC_CONTAINER->REGISTER
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] INTERFACE_NAME                 TYPE        STRING
@@ -232,7 +400,7 @@ CLASS zcl_ioc_container IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD register.
 
-    assert_obj_create_is_possible( class_name ).
+    assert_creation_possible( to_upper( class_name ) ).
 
     ASSIGN mapping_table[ interface_name = to_upper( interface_name ) ]
       TO FIELD-SYMBOL(<mapping>).
@@ -280,53 +448,30 @@ CLASS zcl_ioc_container IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD resolve.
 
-    new_object = VALUE #( instance_mapping_table[
-      interface_name = to_upper( interface_name )
-      ]-object_reference OPTIONAL ).
+    CHECK interface_name IS NOT INITIAL.
 
+    new_object = get_registered_object( interface_name ).
     IF new_object IS BOUND.
       RETURN.
     ENDIF.
 
-    DATA(class_name) = VALUE #(
-      mapping_table[
-        interface_name = to_upper( interface_name )
-      ]-class_name DEFAULT to_upper( interface_name ) ).
+    DATA(class_name) = get_registered_mapping( interface_name ).
+    DATA(type_descriptor) = get_type_descriptor( class_name ).
 
-    CHECK class_name IS NOT INITIAL.
-
-    cl_abap_classdescr=>describe_by_name(
-      EXPORTING
-        p_name         = class_name
-      RECEIVING
-        p_descr_ref    = DATA(new_type_descriptor)
-      EXCEPTIONS
-        OTHERS         = 1
-    ).
-
-    IF new_type_descriptor->kind NE cl_abap_typedescr=>kind_class
-      OR sy-subrc IS NOT INITIAL.
+    IF type_descriptor IS NOT BOUND
+      OR type_descriptor->kind NE cl_abap_typedescr=>kind_class.
       RETURN.
     ENDIF.
 
-    DATA(class_descriptor) = CAST cl_abap_classdescr( new_type_descriptor ).
-    IF class_descriptor->create_visibility NE cl_abap_objectdescr=>public.
-      RETURN.
-    ENDIF.
-
-    DATA(object_descriptor) = CAST cl_abap_objectdescr( new_type_descriptor ).
-    IF object_descriptor->is_instantiatable( ) EQ abap_false.
-      RETURN.
-    ENDIF.
+    TRY.
+        DATA(object_descriptor) = assert_obj_creation_possible( type_descriptor ).
+      CATCH zcx_ioc_container.
+        RETURN.
+    ENDTRY.
 
     DATA(constructor) = VALUE #( object_descriptor->methods[
         name = constructor_name
-      ] DEFAULT VALUE #(
-        visibility = cl_abap_objectdescr=>public
-      ) ).
-    IF constructor-visibility NE cl_abap_objectdescr=>public.
-      RETURN.
-    ENDIF.
+      ] OPTIONAL ).
 
     IF lines( constructor-parameters ) GT 0.
 
@@ -336,17 +481,11 @@ CLASS zcl_ioc_container IMPLEMENTATION.
 
         UNASSIGN <fs>.
 
-        object_descriptor->get_method_parameter_type(
-          EXPORTING
-            p_method_name       = constructor-name
-            p_parameter_name    = constructor_parameter-name
-          RECEIVING
-            p_descr_ref         = DATA(parameter_descriptor)
-          EXCEPTIONS
-            OTHERS              = 1
+        DATA(parameter_descriptor) = get_parameter_descriptor(
+          object_descriptor = object_descriptor
+          parameter_name    = constructor_parameter-name
         ).
-
-        IF sy-subrc IS NOT INITIAL.
+        IF parameter_descriptor IS NOT BOUND.
           " This should not happen as the method and parameter names
           " are returned from the object descriptor
           CONTINUE.
@@ -382,14 +521,14 @@ CLASS zcl_ioc_container IMPLEMENTATION.
 
       ENDLOOP.
 
-      CREATE OBJECT new_object
-        TYPE (class_name)
-        PARAMETER-TABLE parameter_tab.
+      new_object = create_object(
+          class_name    = class_name
+          parameter_tab = parameter_tab
+      ).
 
     ELSE.
 
-      CREATE OBJECT new_object
-        TYPE (class_name).
+      new_object = create_object( class_name ).
 
     ENDIF.
 
