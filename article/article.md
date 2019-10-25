@@ -77,7 +77,7 @@ public class HighLevelModule
 		_myLowLevelModule = lowLevelModule;
 	}
 
-	public DoSomeStuff()
+	public void DoSomeStuff()
 	{
 		Console.WriteLine("I'll do some stuff");
 		_myLowLevelModule.LowLevelStuff();
