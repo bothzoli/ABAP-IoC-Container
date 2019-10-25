@@ -15,7 +15,7 @@
 	- ~~Test with friend classes~~
 	- ~~Cleanup code as much as possible~~
 	- ~~Update ABAP code with latest version~~
-	- Update ABAP UML diagrams
+	- ~~Update ABAP UML diagrams~~
 - DEV.to
 	- Register on DEV.to
 	- Upload articles
