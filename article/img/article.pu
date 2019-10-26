@@ -60,3 +60,34 @@ IDependency <|.. LowLevelModule
 IDependency <|.. AnotherLowLevelModule
 
 @enduml
+
+@startuml ioc_container_flow
+
+(*) --> if "Registered object\nexists?" then
+	-right->[true] "Return registered object"
+else
+	--> "Get registered mapping"
+endif
+
+--> if "No class mapping\nregistered?" then
+	-right-> [true] "Return null"
+else
+	--> "Get type descriptor"
+endif
+
+--> if "Class creation is possible?" then
+	-right-> [false] "Return null"
+else
+	--> "Get constructor parameters"
+endif
+
+--> if "Constructor has parameters?" then
+	partition "For each parameter" {
+		--> "Get parameter type"
+		--> "Create data"
+	}
+endif
+
+--> "Call object\nconstructor"
+
+@enduml

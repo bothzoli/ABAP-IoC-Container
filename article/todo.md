@@ -6,7 +6,7 @@
 	- Have Part 1. proof read
 	- Finalize Part 1. (images, links, etc.)
 - Part 2.
-	- Create draft for Part 2.
+	- ~~Create draft for Part 2.~~
 	- Proof read Part 2.
 	- Finalize Part 2. (images, links, etc.)
 	- Have Part 2. proof read

@@ -2,7 +2,7 @@
 
 ## Preface
 
-The following is a two part article describing my adventures of creating a naive implementation of an inversion of control container in ABAP.
+The following is an article describing my adventures of creating a naive implementation of an inversion of control container in ABAP.
 
 The first part will focus on the Dependency Inversion Principle and ways of achieving it.
 The second part will explain the ABAP implementation of the IoC container.
@@ -248,17 +248,154 @@ Upon creating the `HighLevelModule` the IoC container will realize that an `IDep
 The constructor injection, property injection and factories can easily be implemented in ABAP as in any other OO language.
 However -- as far as I know -- there is currently no standard solution for an IoC container in ABAP.
 
-Since the ABAP language supports runtime type information via the [RTTS][rtts] it seems possible to implement an IoC container and in the second part of this article I will describe one way of doing it.
+Since the ABAP language supports runtime type information via the [Runtime Type Services (RTTS)][rtts] it seems possible to implement an IoC container and in the second part of this article I will describe one way of doing it.
 
 ## Part 2 - The ABAP IoC Container
 
-TODO
+The following class diagram shows the IoC container (click on the image to get a more detailed version).
+
+[![IoC Container class diagram](./img/zcl_ioc_container.png)](./img/zcl_ioc_container_detailed.png)
+
+The usage examples will be taken (in a somewhat modified form) from the unit tests created for the container.
+These will use a set of objects that were defined for testing and demostration purposes.
+The following class diagram shows these classes and interfaces.
+
+[![Test classes class diagram](./img/test_classes.png)](./img/test_classes.png)
+
+
+### Usage
+
+To use the IoC container, first you must obtain an instance of it.
+
+```abap
+DATA(ioc_container) = zcl_ioc_container=>get_instance( ).
+```
+
+Objects can be registered in two ways into the container.
+Simply by their name (`register` method), or by an instance (`register_instance`).
+
+The `register` method will simply create a mapping between an interface name and a class name.
+Whenever this interface is requested from the container, it will assume that an instance of the registered class should be created.
+
+The `register` method also does some checks about the registered class to see wether it can be instantiated by the IoC container.
+It checks:
+
+- If the class is `CREATE PUBLIC` or friends with the container
+- If the class is instantiatable (i.e. not an abstract class)
+
+If either of the above checks fail the register method will throw a `ZCX_IOC_CONTAINER` exception with the text indicating the reason of the failure.
+
+```abap
+ioc_container->register(
+	interface_name = `zif_ioc_b`
+	class_name     = `zcl_ioc_b_subcl`
+).
+
+DATA(ioc_b) = ioc_container->resolve( `zif_ioc_b` ).
+
+cl_abap_unit_assert=>assert_bound( ioc_b ).
+
+cl_abap_unit_assert=>assert_true(
+	xsdbool( ioc_b IS INSTANCE OF zcl_ioc_b_subcl )
+).
+```
+
+The `register_instance` method can be used to register an object instance for a given interface.
+If a registered instance exists for an interface name, then that instance will always be returned by the container.
+This can be used for test double injection (as seen in the below example).
+
+```abap
+DATA(ioc_a) = CAST zif_ioc_a( cl_abap_testdouble=>create( `zif_ioc_a` ) ).
+
+ioc_container->register_instance(
+	interface_name = `zif_ioc_a`
+	instance       = ioc_a
+).
+
+cl_abap_unit_assert=>assert_equals(
+	exp = ioc_a
+	act = ioc_container->resolve( `zif_ioc_a` )
+).
+```
+
+Both `register` and `register_instance` have a corresponding `deregister` and `deregister_instance` method counterpart.
+These methods can either be called with an interface name or without it.
+
+Calling with an interface name will remove that specific mapping, while calling it without an input parameter will clear out all the registered mappings.
+
+```abap
+ioc_container->deregister( `zif_ioc_b` ).
+
+cl_abap_unit_assert=>assert_not_bound(
+	ioc_container->resolve( `zif_ioc_b` )
+).
+
+ioc_container->deregister_instance( `zif_ioc_a` ).
+
+cl_abap_unit_assert=>assert_not_bound(
+	ioc_container->resolve( `zif_ioc_a` )
+).
+```
+
+The method `resolve` is used to get an instance of a registered interface (as seen in the above examples).
+Since object creation issues are most likely already dealt with during the `register` call, `resolve` will not throw exceptions but simply return a `null` object if the object creation fails for some reason.
+
+The `resolve` method can also be called directly with class names.
+In this case no mapping is needed beforehand and the requested class will be instantiated.
+
+```abap
+DATA(ioc_b) = ioc_container->resolve( `zcl_ioc_b_subcl` ).
+
+cl_abap_unit_assert=>assert_bound( ioc_b ).
+
+cl_abap_unit_assert=>assert_true(
+	xsdbool( ioc_b IS INSTANCE OF zcl_ioc_b_subcl )
+).
+```
+
+To see more examples of usage please check out the unit tests in the [corresponding source code][tests] file.
+
+### Implementation
+
+The mappings and registered instances are stored in simple hash tables, but the central part of the IoC container is the dynamic object creation done in the `resolve` method.
+For this I have used the [Runtime Type Services (RTTS)][rtts] which can give information about variables, types, method parameters etc. during runtime.
+
+By using the object descriptor created based on the class's name (`cl_abap_classdescr=>describe_by_name`) we can get hold of the parameter list of the constructor method with all type information.
+We can then iterate through the parameters and resolve them one by one.
+
+Should an input parameter be a simple type, it can be created with an initial value, and should it be an interface type, it can be (recursively) resolved by the IoC container itself.
+
+The generic [object creation][create] can be used to create the instance with a table containing the constructor parameters.
+
+The complete source code can be found [here][container].
+
+## Personal thoughts and improvement possibilities
+
+This IoC container is far from being production ready.
+I have made tests with a some classes and as far as I could tell it is quite stable, however I certainly did not do exhaustive testing.
+I am also pretty much sure that there's room for improvement regarding performance.
+
+All in all, the motivation of creating this IoC container was first and foremost curiosity.
+Although as of now I have not used it in any complex application, I can see the possibility of using it instead of factory classes.
+
+Suppose my application uses a set of utility classes.
+Instead of having factories for all the utility classes, the IoC container could be used to supply the required instances.
+When doing unit/integration testing the container can be preloaded with test double instances using the `register_instance` method.
+
+The source code, along with the exception class, unit tests and the classes/interfaces created for the unit tests can be found in [this GitHub repository][github].
+
+In case you have questions or suggestions please feel free to reach out to me or open an issue or a pull request.
+You can find me on twitter [@bothzoli](https://twitter.com/bothzoli) (DM's are open).
 
 ## Resources
 
-- https://www.youtube.com/watch?v=zHiWqnTWsn4
-- https://www.martinfowler.com/articles/injection.html
-- https://app.pluralsight.com/library/courses/using-dependency-injection-on-ramp
+I have learned a lot from the following resources about dependency injection, I gladly recommend them if you're interested in this topic.
+
+- [Uncle Bob on the SOLID principles](https://www.youtube.com/watch?v=zHiWqnTWsn4)
+- [A great article by Martin Fowler on dependency injection](https://www.martinfowler.com/articles/injection.html)
+- [Jeremy Clark's Pluralsight course on dependency injection in .NET](https://app.pluralsight.com/library/courses/using-dependency-injection-on-ramp)
+
+I have used [PlantUML](http://plantuml.com/) to create the diagrams in this article.
 
 [loosecoupling]: https://en.wikipedia.org/wiki/Loose_coupling
 [dip]: https://en.wikipedia.org/wiki/Dependency_inversion_principle
@@ -267,3 +404,7 @@ TODO
 [factory]: https://en.wikipedia.org/wiki/Factory_method_pattern
 [autofac]: https://autofac.org/
 [rtts]: https://help.sap.com/doc/abapdocu_750_index_htm/7.50/en-US/abenrtti.htm
+[tests]: https://github.com/bothzoli/ABAP-IoC-Container/blob/master/src/tests/zcl_ioc_container_tests.abap
+[create]: https://help.sap.com/doc/abapdocu_752_index_htm/7.52/en-us/abapcreate_object_para_tables.htm
+[container]: https://github.com/bothzoli/ABAP-IoC-Container/blob/master/src/zcl_ioc_container.abap
+[github]: https://github.com/bothzoli/ABAP-IoC-Container/tree/master/src

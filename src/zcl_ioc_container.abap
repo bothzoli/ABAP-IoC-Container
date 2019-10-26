@@ -65,12 +65,6 @@ CLASS zcl_ioc_container DEFINITION
       instance_mapping_table TYPE tt_instance_mapping_table.
 
     METHODS:
-      create_object
-        IMPORTING
-          !class_name       TYPE string
-          !parameter_tab    TYPE abap_parmbind_tab OPTIONAL
-        RETURNING
-          VALUE(new_object) TYPE REF TO object,
       assert_creation_possible
         IMPORTING
           !class_name              TYPE string
@@ -99,23 +93,18 @@ CLASS zcl_ioc_container DEFINITION
         RAISING
           zcx_ioc_container,
 
+      get_parameter_descriptor
+        IMPORTING
+          !object_descriptor          TYPE REF TO cl_abap_objectdescr
+          !parameter_name             TYPE abap_parmname
+        RETURNING
+          VALUE(parameter_descriptor) TYPE REF TO cl_abap_datadescr,
+
       get_parameter_type_name
         IMPORTING
           !parameter_descriptor      TYPE REF TO cl_abap_datadescr
         RETURNING
           VALUE(parameter_type_name) TYPE string,
-
-      get_type_descriptor
-        IMPORTING
-          !class_name            TYPE string
-        RETURNING
-          VALUE(type_descriptor) TYPE REF TO cl_abap_typedescr,
-
-      get_registered_object
-        IMPORTING
-          !interface_name          TYPE string
-        RETURNING
-          VALUE(registered_object) TYPE REF TO object,
 
       get_registered_mapping
         IMPORTING
@@ -123,12 +112,17 @@ CLASS zcl_ioc_container DEFINITION
         RETURNING
           VALUE(class_name) TYPE string,
 
-      get_parameter_descriptor
+      get_registered_object
         IMPORTING
-          !object_descriptor          TYPE REF TO cl_abap_objectdescr
-          !parameter_name             TYPE abap_parmname
+          !interface_name          TYPE string
         RETURNING
-          VALUE(parameter_descriptor) TYPE REF TO cl_abap_datadescr.
+          VALUE(registered_object) TYPE REF TO object,
+
+      get_type_descriptor
+        IMPORTING
+          !class_name            TYPE string
+        RETURNING
+          VALUE(type_descriptor) TYPE REF TO cl_abap_typedescr.
 
 ENDCLASS.
 
@@ -210,27 +204,6 @@ CLASS zcl_ioc_container IMPLEMENTATION.
 
     IF object_descriptor->is_instantiatable( ) NE abap_true.
       RAISE EXCEPTION NEW zcx_ioc_container( zcx_ioc_container=>object_is_not_instantiatable ).
-    ENDIF.
-
-  ENDMETHOD.
-
-
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Private Method ZCL_IOC_CONTAINER->CREATE_OBJECT
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] CLASS_NAME                     TYPE        STRING
-* | [--->] PARAMETER_TAB                  TYPE        ABAP_PARMBIND_TAB(optional)
-* | [<-()] NEW_OBJECT                     TYPE REF TO OBJECT
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  METHOD create_object.
-
-    IF parameter_tab IS SUPPLIED.
-      CREATE OBJECT new_object
-        TYPE (class_name)
-        PARAMETER-TABLE parameter_tab.
-    ELSE.
-      CREATE OBJECT new_object
-        TYPE (class_name).
     ENDIF.
 
   ENDMETHOD.
@@ -321,17 +294,20 @@ CLASS zcl_ioc_container IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_parameter_type_name.
 
-    DATA(reference_descriptor) = CAST cl_abap_refdescr( parameter_descriptor ).
-    DATA(referenced_type) = reference_descriptor->get_referenced_type( ).
+    IF parameter_descriptor->kind EQ cl_abap_typedescr=>kind_ref.
+      DATA(reference_descriptor) = CAST cl_abap_refdescr( parameter_descriptor ).
+      DATA(referenced_type) = reference_descriptor->get_referenced_type( ).
 
-    IF referenced_type->kind EQ cl_abap_typedescr=>kind_class.
-      DATA(parameter_obj_descriptor) = CAST cl_abap_objectdescr( referenced_type ).
-      parameter_type_name  = parameter_obj_descriptor->get_relative_name( ).
+      IF referenced_type->kind EQ cl_abap_typedescr=>kind_class.
+        DATA(parameter_obj_descriptor) = CAST cl_abap_objectdescr( referenced_type ).
+        parameter_type_name  = parameter_obj_descriptor->get_relative_name( ).
 
-    ELSEIF referenced_type->kind EQ cl_abap_typedescr=>kind_intf.
-      DATA(interface_descriptor) = CAST cl_abap_intfdescr( referenced_type ).
-      parameter_type_name = interface_descriptor->get_relative_name( ).
-
+      ELSEIF referenced_type->kind EQ cl_abap_typedescr=>kind_intf.
+        DATA(interface_descriptor) = CAST cl_abap_intfdescr( referenced_type ).
+        parameter_type_name = interface_descriptor->get_relative_name( ).
+      ENDIF.
+    ELSE.
+      parameter_type_name = parameter_descriptor->get_relative_name( ).
     ENDIF.
 
   ENDMETHOD.
@@ -474,7 +450,7 @@ CLASS zcl_ioc_container IMPLEMENTATION.
       ] OPTIONAL ).
 
     IF lines( constructor-parameters ) GT 0.
-
+      DATA: ref TYPE REF TO data.
       FIELD-SYMBOLS: <fs> TYPE any.
 
       LOOP AT constructor-parameters INTO DATA(constructor_parameter).
@@ -491,20 +467,17 @@ CLASS zcl_ioc_container IMPLEMENTATION.
           CONTINUE.
         ENDIF.
 
+        DATA(parameter_type_name) = get_parameter_type_name( parameter_descriptor ).
+
         IF constructor_parameter-type_kind EQ cl_abap_typedescr=>typekind_oref.
-
-          DATA(parameter_type_name) = get_parameter_type_name( parameter_descriptor ).
-
-          DATA: ref TYPE REF TO data.
           CREATE DATA ref TYPE REF TO (parameter_type_name).
           ASSIGN ref->* TO <fs>.
 
           <fs> ?= resolve( parameter_type_name ).
         ELSE.
-          DATA(type_name) = parameter_descriptor->get_relative_name( ).
-          CREATE DATA ref TYPE (type_name).
-
+          CREATE DATA ref TYPE (parameter_type_name).
           ASSIGN ref->* TO <fs>.
+
         ENDIF.
 
         IF constructor_parameter-is_optional EQ abap_true
@@ -521,14 +494,14 @@ CLASS zcl_ioc_container IMPLEMENTATION.
 
       ENDLOOP.
 
-      new_object = create_object(
-          class_name    = class_name
-          parameter_tab = parameter_tab
-      ).
+      CREATE OBJECT new_object
+        TYPE (class_name)
+        PARAMETER-TABLE parameter_tab.
 
     ELSE.
 
-      new_object = create_object( class_name ).
+      CREATE OBJECT new_object
+        TYPE (class_name).
 
     ENDIF.
 
