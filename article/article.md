@@ -65,49 +65,49 @@ The following code example shows this in C#.
 ```C#
 public interface IDependency
 {
-	void LowLevelStuff();
+  void LowLevelStuff();
 }
 
 public class HighLevelModule
 {
-	private IDependency _myLowLevelModule;
+  private IDependency _myLowLevelModule;
 
-	public HighLevelModule(IDependency lowLevelModule)
-	{
-		_myLowLevelModule = lowLevelModule;
-	}
+  public HighLevelModule(IDependency lowLevelModule)
+  {
+    _myLowLevelModule = lowLevelModule;
+  }
 
-	public void DoSomeStuff()
-	{
-		Console.WriteLine("I'll do some stuff");
-		_myLowLevelModule.LowLevelStuff();
-	}
+  public void DoSomeStuff()
+  {
+    Console.WriteLine("I'll do some stuff");
+    _myLowLevelModule.LowLevelStuff();
+  }
 }
 
 public class LowLevelModule: IDependency
 {
-	public void LowLevelStuff()
-	{
-		Console.WriteLine("In LowLevelModule");
-	}
+  public void LowLevelStuff()
+  {
+    Console.WriteLine("In LowLevelModule");
+  }
 }
 
 public class AnotherLowLevelModule: IDependency
 {
-	public void LowLevelStuff()
-	{
-		Console.WriteLine("In AnotherLowLevelModule");
-	}
+  public void LowLevelStuff()
+  {
+    Console.WriteLine("In AnotherLowLevelModule");
+  }
 }
 
 public class Program
 {
-	static void Main(string[] args)
-	{
-		var lowLevelModule = new LowLevelModule();
-		var highLevelModule = new HighLevelModule(lowLevelModule);
-		highLevelModule.DoSomeStuff();
-	}
+  static void Main(string[] args)
+  {
+    var lowLevelModule = new LowLevelModule();
+    var highLevelModule = new HighLevelModule(lowLevelModule);
+    highLevelModule.DoSomeStuff();
+  }
 }
 /*
 This code example produces the following results:
@@ -131,29 +131,29 @@ Reworking the above example:
 ...
 public class HighLevelModule
 {
-	private IDependency _myLowLevelModule;
-	public IDependency MyLowLevelModule { set => _myLowLevelModule = value; }
+  private IDependency _myLowLevelModule;
+  public IDependency MyLowLevelModule { set => _myLowLevelModule = value; }
 
-	public HighLevelModule()
-	{
-		// Use LowLevelModule by default
-		_myLowLevelModule = new LowLevelModule();
-	}
+  public HighLevelModule()
+  {
+    // Use LowLevelModule by default
+    _myLowLevelModule = new LowLevelModule();
+  }
 ...
 }
 ...
 
 public class Program
 {
-	static void Main(string[] args)
-	{
-		var highLevelModule = new HighLevelModule();
-		highLevelModule.DoSomeStuff();
+  static void Main(string[] args)
+  {
+    var highLevelModule = new HighLevelModule();
+    highLevelModule.DoSomeStuff();
 
-		var anotherLowLevelModule = new AnotherLowLevelModule();
-		highLevelModule.MyLowLevelModule = anotherLowLevelModule;
-		highLevelModule.DoSomeStuff();
-	}
+    var anotherLowLevelModule = new AnotherLowLevelModule();
+    highLevelModule.MyLowLevelModule = anotherLowLevelModule;
+    highLevelModule.DoSomeStuff();
+  }
 }
 /*
 This code example produces the following results:
@@ -176,31 +176,31 @@ Another solution is to have a dependency factory, that supply an abstraction and
 ```C#
 ...
 public static class LowLevelModuleFactory {
-	public static IDependency CreateModule()
-	{
-		return new LowLevelModule();
-	}
+  public static IDependency CreateModule()
+  {
+    return new LowLevelModule();
+  }
 }
 
 public class HighLevelModule
 {
-	private IDependency _myLowLevelModule;
+  private IDependency _myLowLevelModule;
 
-	public HighLevelModule()
-	{
-		// Use LowLevelModule by default
-		_myLowLevelModule = LowLevelModuleFactory.CreateModule();
-	}
+  public HighLevelModule()
+  {
+    // Use LowLevelModule by default
+    _myLowLevelModule = LowLevelModuleFactory.CreateModule();
+  }
 ...
 }
 ...
 public class Program
 {
-	static void Main(string[] args)
-	{
-		var highLevelModule = new HighLevelModule();
-		highLevelModule.DoSomeStuff();
-	}
+  static void Main(string[] args)
+  {
+    var highLevelModule = new HighLevelModule();
+    highLevelModule.DoSomeStuff();
+  }
 }
 /*
 This code example produces the following results:
@@ -226,17 +226,17 @@ The following example shows a way of doing it in C# using the [Autofac][autofac]
 ...
 public class Program
 {
-	private static IContainer Container { get; set; }
+  private static IContainer Container { get; set; }
 
-	static void Main(string[] args)
-	{
-		var builder = new ContainerBuilder();
-		builder.RegisterType<LowLevelModule>().As<IDependency>();
-		Container = builder.Build();
+  static void Main(string[] args)
+  {
+    var builder = new ContainerBuilder();
+    builder.RegisterType<LowLevelModule>().As<IDependency>();
+    Container = builder.Build();
 
-		var highLevelModule = new HighLevelModule();
-		highLevelModule.DoSomeStuff();
-	}
+    var highLevelModule = new HighLevelModule();
+    highLevelModule.DoSomeStuff();
+  }
 }
 ```
 
@@ -287,8 +287,8 @@ If either of the above checks fail the register method will throw a `ZCX_IOC_CON
 
 ```abap
 ioc_container->register(
-	interface_name = `zif_ioc_b`
-	class_name     = `zcl_ioc_b_subcl`
+  interface_name = `zif_ioc_b`
+  class_name     = `zcl_ioc_b_subcl`
 ).
 
 DATA(ioc_b) = ioc_container->resolve( `zif_ioc_b` ).
@@ -296,7 +296,7 @@ DATA(ioc_b) = ioc_container->resolve( `zif_ioc_b` ).
 cl_abap_unit_assert=>assert_bound( ioc_b ).
 
 cl_abap_unit_assert=>assert_true(
-	xsdbool( ioc_b IS INSTANCE OF zcl_ioc_b_subcl )
+  xsdbool( ioc_b IS INSTANCE OF zcl_ioc_b_subcl )
 ).
 ```
 
@@ -308,13 +308,13 @@ This can be used for test double injection (as seen in the below example).
 DATA(ioc_a) = CAST zif_ioc_a( cl_abap_testdouble=>create( `zif_ioc_a` ) ).
 
 ioc_container->register_instance(
-	interface_name = `zif_ioc_a`
-	instance       = ioc_a
+  interface_name = `zif_ioc_a`
+  instance       = ioc_a
 ).
 
 cl_abap_unit_assert=>assert_equals(
-	exp = ioc_a
-	act = ioc_container->resolve( `zif_ioc_a` )
+  exp = ioc_a
+  act = ioc_container->resolve( `zif_ioc_a` )
 ).
 ```
 
@@ -327,13 +327,13 @@ Calling with an interface name will remove that specific mapping, while calling 
 ioc_container->deregister( `zif_ioc_b` ).
 
 cl_abap_unit_assert=>assert_not_bound(
-	ioc_container->resolve( `zif_ioc_b` )
+  ioc_container->resolve( `zif_ioc_b` )
 ).
 
 ioc_container->deregister_instance( `zif_ioc_a` ).
 
 cl_abap_unit_assert=>assert_not_bound(
-	ioc_container->resolve( `zif_ioc_a` )
+  ioc_container->resolve( `zif_ioc_a` )
 ).
 ```
 
@@ -349,7 +349,7 @@ DATA(ioc_b) = ioc_container->resolve( `zcl_ioc_b_subcl` ).
 cl_abap_unit_assert=>assert_bound( ioc_b ).
 
 cl_abap_unit_assert=>assert_true(
-	xsdbool( ioc_b IS INSTANCE OF zcl_ioc_b_subcl )
+  xsdbool( ioc_b IS INSTANCE OF zcl_ioc_b_subcl )
 ).
 ```
 
