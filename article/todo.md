@@ -3,13 +3,13 @@
 - Part 1.
 	- ~~Validate C# code~~
 	- ~~Proof read Part 1.~~
-	- Have Part 1. proof read
-	- Finalize Part 1. (images, links, etc.)
+	- ~~Have Part 1. proof read~~
+	- ~~Finalize Part 1. (images, links, etc.)~~
 - Part 2.
 	- ~~Create draft for Part 2.~~
-	- Proof read Part 2.
-	- Finalize Part 2. (images, links, etc.)
-	- Have Part 2. proof read
+	- ~~Proof read Part 2.~~
+	- ~~Finalize Part 2. (images, links, etc.)~~
+	- ~~Have Part 2. proof read~~
 - IoC Container
 	- ~~Make it inheritable (private -> protected where applicable)~~
 	- ~~Test with friend classes~~
@@ -17,13 +17,13 @@
 	- ~~Update ABAP code with latest version~~
 	- ~~Update ABAP UML diagrams~~
 - DEV.to
-	- Register on DEV.to
-	- Upload articles
-	- Proof read
-	- Publish
+	- ~~Register on DEV.to~~
+	- ~~Upload articles~~
+	- ~~Proof read~~
+	- ~~Publish~~
 - blogs.sap.com
 	- Cross-reference DEV.to articles
 	- Proof read
 	- Publish
-- Send links around
-- Tweet
+- ~~Send links around~~
+- ~~Tweet~~
