@@ -274,11 +274,10 @@ DATA(ioc_container) = zcl_ioc_container=>get_instance( ).
 Objects can be registered in two ways into the container.
 Simply by their name (`register` method), or by an instance (`register_instance`).
 
-The `register` method will simply create a mapping between an interface name and a class name.
+The `register` method will create a mapping between an interface name and a class name.
 Whenever this interface is requested from the container, it will assume that an instance of the registered class should be created.
 
-The `register` method also does some checks about the registered class to see wether it can be instantiated by the IoC container.
-It checks:
+The `register` method will also do some checks for the registered class to see wether it can be instantiated, namely:
 
 - If the class is `CREATE PUBLIC` or friends with the container
 - If the class is instantiatable (i.e. not an abstract class)
@@ -357,30 +356,31 @@ To see more examples of usage please check out the unit tests in the [correspond
 
 ### Implementation
 
-The mappings and registered instances are stored in simple hash tables, but the central part of the IoC container is the dynamic object creation done in the `resolve` method.
+The mappings and registered instances are stored in hash tables, but the central part of the IoC container is the dynamic object creation done in the `resolve` method.
 For this I have used the [Runtime Type Services (RTTS)][rtts] which can give information about variables, types, method parameters etc. during runtime.
 
 By using the object descriptor created based on the class's name (`cl_abap_classdescr=>describe_by_name`) we can get hold of the parameter list of the constructor method with all type information.
 We can then iterate through the parameters and resolve them one by one.
 
-Should an input parameter be a simple type, it can be created with an initial value, and should it be an interface type, it can be (recursively) resolved by the IoC container itself.
+Should an input parameter be a simple type, it can be created with an initial value.
+And should it be an interface type, it can be (recursively) resolved by the IoC container itself.
 
-The generic [object creation][create] can be used to create the instance with a table containing the constructor parameters.
+The constructor parameters are collected in a parameter table which can be used with the generic [object creation][create].
 
 The complete source code can be found [here][container].
 
 ## Personal thoughts and improvement possibilities
 
 This IoC container is far from being production ready.
-I have made tests with a some classes and as far as I could tell it is quite stable, however I certainly did not do exhaustive testing.
-I am also pretty much sure that there's room for improvement regarding performance.
+I have made tests with a some _"real world"_ classes as well and as far as I could tell it is quite stable, however I certainly did not do exhaustive testing.
+I am also pretty sure that there's room for improvement regarding performance.
 
 All in all, the motivation of creating this IoC container was first and foremost curiosity.
 Although as of now I have not used it in any complex application, I can see the possibility of using it instead of factory classes.
 
 Suppose my application uses a set of utility classes.
 Instead of having factories for all the utility classes, the IoC container could be used to supply the required instances.
-When doing unit/integration testing the container can be preloaded with test double instances using the `register_instance` method.
+When doing unit/integration testing the container can be preloaded with test double instances using the `register_instance` method for test isolation.
 
 The source code, along with the exception class, unit tests and the classes/interfaces created for the unit tests can be found in [this GitHub repository][github].
 
