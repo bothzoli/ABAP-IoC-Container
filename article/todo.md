@@ -22,8 +22,8 @@
 	- ~~Proof read~~
 	- ~~Publish~~
 - blogs.sap.com
-	- Cross-reference DEV.to articles
-	- Proof read
-	- Publish
+	- ~~Cross-reference DEV.to articles~~
+	- ~~Proof read~~
+	- ~~Publish~~
 - ~~Send links around~~
 - ~~Tweet~~
