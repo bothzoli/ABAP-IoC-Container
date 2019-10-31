@@ -383,6 +383,7 @@ Instead of having factories for all the utility classes, the IoC container could
 When doing unit/integration testing the container can be preloaded with test double instances using the `register_instance` method for test isolation.
 
 The source code, along with the exception class, unit tests and the classes/interfaces created for the unit tests can be found in [this GitHub repository][github].
+The sources can also be found [here][zip] as a zip file which you should be able to import using [abapGit][abapgit].
 
 In case you have questions or suggestions please feel free to reach out to me or open an issue or a pull request.
 You can find me on twitter [@bothzoli](https://twitter.com/bothzoli) (DM's are open).
@@ -408,3 +409,5 @@ I have used [PlantUML](http://plantuml.com/) to create the diagrams in this arti
 [create]: https://help.sap.com/doc/abapdocu_752_index_htm/7.52/en-us/abapcreate_object_para_tables.htm
 [container]: https://github.com/bothzoli/ABAP-IoC-Container/blob/master/src/zcl_ioc_container.abap
 [github]: https://github.com/bothzoli/ABAP-IoC-Container/tree/master/src
+[zip]: https://github.com/bothzoli/ABAP-IoC-Container/blob/master/src/TEST_IOC.zip
+[abapgit]: https://docs.abapgit.org/
