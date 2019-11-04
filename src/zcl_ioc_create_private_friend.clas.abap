@@ -1,0 +1,15 @@
+CLASS zcl_ioc_create_private_friend DEFINITION
+  PUBLIC
+  CREATE PRIVATE
+  GLOBAL FRIENDS zcl_ioc_container zcl_ioc_container_subclass.
+
+  PUBLIC SECTION.
+
+    INTERFACES zif_ioc_a.
+
+ENDCLASS.
+
+
+
+CLASS ZCL_IOC_CREATE_PRIVATE_FRIEND IMPLEMENTATION.
+ENDCLASS.

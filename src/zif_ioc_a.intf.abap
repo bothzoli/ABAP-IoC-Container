@@ -1,0 +1,4 @@
+INTERFACE zif_ioc_a
+  PUBLIC.
+
+ENDINTERFACE.
