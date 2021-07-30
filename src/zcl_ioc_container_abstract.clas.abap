@@ -381,6 +381,7 @@ CLASS ZCL_IOC_CONTAINER_ABSTRACT IMPLEMENTATION.
     IF lines( constructor-parameters ) GT 0.
 
       FIELD-SYMBOLS: <fs> TYPE any.
+      DATA(parameter_tab) = VALUE abap_parmbind_tab( ).
 
       LOOP AT constructor-parameters INTO DATA(constructor_parameter).
 
@@ -418,11 +419,11 @@ CLASS ZCL_IOC_CONTAINER_ABSTRACT IMPLEMENTATION.
           CONTINUE.
         ENDIF.
 
-        DATA(parameter_tab) = VALUE abap_parmbind_tab( (
+        INSERT VALUE #(
           name  = constructor_parameter-name
           kind  = cl_abap_objectdescr=>exporting
           value = REF #( <fs> )
-        ) ).
+        ) INTO TABLE parameter_tab.
 
       ENDLOOP.
 
